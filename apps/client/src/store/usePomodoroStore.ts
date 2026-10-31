@@ -1,8 +1,21 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { TimerMode, UserSettings, Task, PomodoroSession } from '@pomodoro/shared';
+import type { TimerMode, UserSettings, Task, PomodoroSession, UserProfile } from '@pomodoro/shared';
+import { apiClient } from '../utils/api';
 
 interface PomodoroState {
+  // Optional Auth & Cloud Sync State
+  user: UserProfile | null;
+  token: string | null;
+  isSyncing: boolean;
+  lastSyncedAt: string | null;
+  syncError: string | null;
+
+  // Auth & Sync Actions
+  setAuth: (user: UserProfile, token: string) => Promise<void>;
+  logout: () => void;
+  syncWithCloud: () => Promise<void>;
+
   // Settings
   settings: UserSettings;
   updateSettings: (partial: Partial<UserSettings>) => void;
@@ -28,13 +41,16 @@ interface PomodoroState {
 
   // Task Actions
   addTask: (title: string, estimatedPomodoros: number, note?: string) => void;
-  updateTask: (id: string, updates: Partial<Pick<Task, 'title' | 'note' | 'estimatedPomodoros' | 'isCompleted'>>) => void;
+  updateTask: (
+    id: string,
+    updates: Partial<Pick<Task, 'title' | 'note' | 'estimatedPomodoros' | 'isCompleted'>>
+  ) => void;
   toggleTaskComplete: (id: string) => void;
   deleteTask: (id: string) => void;
   clearCompletedTasks: () => void;
   setActiveTask: (id: string | null) => void;
 
-  // Sessions History (Local-first analytics & future cloud sync queue)
+  // Sessions History (Local-first analytics & cloud sync queue)
   sessions: PomodoroSession[];
   clearHistory: () => void;
 }
@@ -65,21 +81,83 @@ export const getDurationForMode = (mode: TimerMode, settings: UserSettings): num
 export const usePomodoroStore = create<PomodoroState>()(
   persist(
     (set, get) => ({
+      user: null,
+      token: null,
+      isSyncing: false,
+      lastSyncedAt: null,
+      syncError: null,
+
+      setAuth: async (user, token) => {
+        set({ user, token, syncError: null });
+        await get().syncWithCloud();
+      },
+
+      logout: () => {
+        set({
+          user: null,
+          token: null,
+          isSyncing: false,
+          syncError: null,
+        });
+      },
+
+      syncWithCloud: async () => {
+        const { token, settings, tasks, sessions } = get();
+        if (!token) return;
+
+        set({ isSyncing: true, syncError: null });
+        try {
+          const merged = await apiClient.syncAll(token, {
+            settings,
+            tasks,
+            sessions,
+          });
+
+          const currentState = get();
+          const nextRemaining = currentState.isRunning
+            ? currentState.remainingSeconds
+            : getDurationForMode(currentState.mode, merged.settings);
+
+          set({
+            settings: merged.settings,
+            tasks: merged.tasks.length > 0 ? merged.tasks : currentState.tasks,
+            sessions: merged.sessions,
+            remainingSeconds: nextRemaining,
+            activeTaskId:
+              currentState.activeTaskId &&
+              merged.tasks.some((t) => t.id === currentState.activeTaskId)
+                ? currentState.activeTaskId
+                : merged.tasks[0]?.id ?? currentState.activeTaskId,
+            isSyncing: false,
+            lastSyncedAt: new Date().toISOString(),
+            syncError: null,
+          });
+        } catch (err) {
+          set({
+            isSyncing: false,
+            syncError: err instanceof Error ? err.message : 'Không thể đồng bộ đám mây',
+          });
+        }
+      },
+
       settings: DEFAULT_SETTINGS,
 
-      updateSettings: (partial) =>
-        set((state) => {
-          const nextSettings = { ...state.settings, ...partial };
-          // If timer is not currently running, update remainingSeconds to match new duration for current mode
-          const nextRemaining = state.isRunning
-            ? state.remainingSeconds
-            : getDurationForMode(state.mode, nextSettings);
+      updateSettings: (partial) => {
+        const state = get();
+        const nextSettings = { ...state.settings, ...partial };
+        const nextRemaining = state.isRunning
+          ? state.remainingSeconds
+          : getDurationForMode(state.mode, nextSettings);
 
-          return {
-            settings: nextSettings,
-            remainingSeconds: nextRemaining,
-          };
-        }),
+        set({
+          settings: nextSettings,
+          remainingSeconds: nextRemaining,
+        });
+
+        if (state.token) {
+          apiClient.updateSettings(state.token, partial).catch(() => {});
+        }
+      },
 
       mode: 'POMODORO',
       remainingSeconds: DEFAULT_SETTINGS.pomodoroDuration,
@@ -122,12 +200,13 @@ export const usePomodoroStore = create<PomodoroState>()(
         const nowIso = new Date().toISOString();
         const activeTask = state.tasks.find((t) => t.id === state.activeTaskId);
 
-        // Record session if it wasn't skipped or if user focused for at least 60s
         const newSessions = [...state.sessions];
+        let createdSession: PomodoroSession | null = null;
+
         if (!wasSkipped || elapsedSeconds >= 60) {
-          newSessions.unshift({
+          createdSession = {
             id: crypto.randomUUID(),
-            taskId: state.activeTaskId,
+            taskId: state.activeTaskId === 'welcome-task-1' ? null : state.activeTaskId,
             taskTitle: activeTask?.title,
             mode: state.mode,
             durationSeconds: elapsedSeconds,
@@ -135,10 +214,10 @@ export const usePomodoroStore = create<PomodoroState>()(
             endedAt: nowIso,
             isCompleted: !wasSkipped,
             synced: false,
-          });
+          };
+          newSessions.unshift(createdSession);
         }
 
-        // Update task completedPomodoros if this was a completed POMODORO
         let updatedTasks = state.tasks;
         let nextCycleCount = state.completedPomodorosInCycle;
         let nextMode: TimerMode = 'POMODORO';
@@ -178,6 +257,21 @@ export const usePomodoroStore = create<PomodoroState>()(
           isRunning: !wasSkipped && shouldAutoStart,
           sessionStartedAt: !wasSkipped && shouldAutoStart ? nowIso : null,
         });
+
+        // Push session to Cloud if user is logged in
+        if (state.token && createdSession) {
+          apiClient
+            .createSession(state.token, createdSession)
+            .then(() => {
+              set((curr) => ({
+                sessions: curr.sessions.map((s) =>
+                  s.id === createdSession!.id ? { ...s, synced: true } : s
+                ),
+                lastSyncedAt: new Date().toISOString(),
+              }));
+            })
+            .catch(() => {});
+        }
       },
 
       tasks: [
@@ -195,72 +289,110 @@ export const usePomodoroStore = create<PomodoroState>()(
       ],
       activeTaskId: 'welcome-task-1',
 
-      addTask: (title, estimatedPomodoros, note) =>
-        set((state) => {
-          const now = new Date().toISOString();
-          const newTask: Task = {
-            id: crypto.randomUUID(),
-            title: title.trim(),
-            note: note?.trim() || undefined,
-            estimatedPomodoros: Math.max(1, estimatedPomodoros),
-            completedPomodoros: 0,
-            isCompleted: false,
-            orderIndex: state.tasks.length,
-            createdAt: now,
-            updatedAt: now,
-          };
-          return {
-            tasks: [...state.tasks, newTask],
-            activeTaskId: state.activeTaskId ?? newTask.id,
-          };
-        }),
+      addTask: (title, estimatedPomodoros, note) => {
+        const state = get();
+        const now = new Date().toISOString();
+        const newTask: Task = {
+          id: crypto.randomUUID(),
+          title: title.trim(),
+          note: note?.trim() || undefined,
+          estimatedPomodoros: Math.max(1, estimatedPomodoros),
+          completedPomodoros: 0,
+          isCompleted: false,
+          orderIndex: state.tasks.length,
+          createdAt: now,
+          updatedAt: now,
+        };
 
-      updateTask: (id, updates) =>
-        set((state) => ({
+        set({
+          tasks: [...state.tasks, newTask],
+          activeTaskId: state.activeTaskId ?? newTask.id,
+        });
+
+        if (state.token) {
+          apiClient.createTask(state.token, newTask).catch(() => {});
+        }
+      },
+
+      updateTask: (id, updates) => {
+        const state = get();
+        set({
           tasks: state.tasks.map((task) =>
             task.id === id
               ? { ...task, ...updates, updatedAt: new Date().toISOString() }
               : task
           ),
-        })),
+        });
 
-      toggleTaskComplete: (id) =>
-        set((state) => ({
+        if (state.token && id !== 'welcome-task-1') {
+          apiClient.updateTask(state.token, id, updates).catch(() => {});
+        }
+      },
+
+      toggleTaskComplete: (id) => {
+        const state = get();
+        const target = state.tasks.find((t) => t.id === id);
+        if (!target) return;
+        const nextCompleted = !target.isCompleted;
+
+        set({
           tasks: state.tasks.map((task) =>
             task.id === id
               ? {
                   ...task,
-                  isCompleted: !task.isCompleted,
+                  isCompleted: nextCompleted,
                   updatedAt: new Date().toISOString(),
                 }
               : task
           ),
-        })),
+        });
 
-      deleteTask: (id) =>
-        set((state) => {
-          const remaining = state.tasks.filter((t) => t.id !== id);
-          const nextActiveId =
-            state.activeTaskId === id
-              ? remaining.find((t) => !t.isCompleted)?.id ?? null
-              : state.activeTaskId;
-          return {
-            tasks: remaining,
-            activeTaskId: nextActiveId,
-          };
-        }),
+        if (state.token && id !== 'welcome-task-1') {
+          apiClient
+            .updateTask(state.token, id, { isCompleted: nextCompleted })
+            .catch(() => {});
+        }
+      },
 
-      clearCompletedTasks: () =>
-        set((state) => {
-          const remaining = state.tasks.filter((t) => !t.isCompleted);
-          const isActiveStillPresent = remaining.some((t) => t.id === state.activeTaskId);
-          return {
-            tasks: remaining,
-            activeTaskId: isActiveStillPresent
-              ? state.activeTaskId
-              : remaining[0]?.id ?? null,
-          };
-        }),
+      deleteTask: (id) => {
+        const state = get();
+        const remaining = state.tasks.filter((t) => t.id !== id);
+        const nextActiveId =
+          state.activeTaskId === id
+            ? remaining.find((t) => !t.isCompleted)?.id ?? null
+            : state.activeTaskId;
+
+        set({
+          tasks: remaining,
+          activeTaskId: nextActiveId,
+        });
+
+        if (state.token && id !== 'welcome-task-1') {
+          apiClient.deleteTask(state.token, id).catch(() => {});
+        }
+      },
+
+      clearCompletedTasks: () => {
+        const state = get();
+        const completedIds = state.tasks
+          .filter((t) => t.isCompleted && t.id !== 'welcome-task-1')
+          .map((t) => t.id);
+        const remaining = state.tasks.filter((t) => !t.isCompleted);
+        const isActiveStillPresent = remaining.some((t) => t.id === state.activeTaskId);
+
+        set({
+          tasks: remaining,
+          activeTaskId: isActiveStillPresent
+            ? state.activeTaskId
+            : remaining[0]?.id ?? null,
+        });
+
+        if (state.token) {
+          completedIds.forEach((id) => {
+            apiClient.deleteTask(state.token!, id).catch(() => {});
+          });
+        }
+      },
 
       setActiveTask: (id) => set({ activeTaskId: id }),
 
@@ -271,6 +403,9 @@ export const usePomodoroStore = create<PomodoroState>()(
       name: 'pomofocus-local-storage-v1',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        lastSyncedAt: state.lastSyncedAt,
         settings: state.settings,
         mode: state.mode,
         remainingSeconds: state.remainingSeconds,

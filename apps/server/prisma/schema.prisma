@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String            @id @default(uuid())
+  email        String            @unique
+  googleId     String?           @unique @map("google_id")
+  passwordHash String?           @map("password_hash")
+  name         String
+  avatarUrl    String?           @map("avatar_url")
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  settings     UserSettings?
+  tasks        Task[]
+  sessions     PomodoroSession[]
+
+  @@map("users")
+}
+
+model UserSettings {
+  id                 String  @id @default(uuid())
+  userId             String  @unique @map("user_id")
+  pomodoroDuration   Int     @default(1500) @map("pomodoro_duration")
+  shortBreakDuration Int     @default(300) @map("short_break_duration")
+  longBreakDuration  Int     @default(900) @map("long_break_duration")
+  longBreakInterval  Int     @default(4) @map("long_break_interval")
+  autoStartBreaks    Boolean @default(false) @map("auto_start_breaks")
+  autoStartPomodoros Boolean @default(false) @map("auto_start_pomodoros")
+  alarmSound         String  @default("bell") @map("alarm_sound")
+  alarmVolume        Int     @default(80) @map("alarm_volume")
+  darkMode           Boolean @default(true) @map("dark_mode")
+
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model Task {
+  id                 String            @id @default(uuid())
+  userId             String            @map("user_id")
+  title              String
+  note               String?
+  estimatedPomodoros Int               @default(1) @map("estimated_pomodoros")
+  completedPomodoros Int               @default(0) @map("completed_pomodoros")
+  isCompleted        Boolean           @default(false) @map("is_completed")
+  orderIndex         Int               @default(0) @map("order_index")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions           PomodoroSession[]
+
+  @@map("tasks")
+}
+
+model PomodoroSession {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  taskId          String?  @map("task_id")
+  taskTitle       String?  @map("task_title")
+  mode            String   // POMODORO | SHORT_BREAK | LONG_BREAK
+  durationSeconds Int      @map("duration_seconds")
+  startedAt       DateTime @map("started_at")
+  endedAt         DateTime @map("ended_at")
+  isCompleted     Boolean  @default(true) @map("is_completed")
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task            Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@map("pomodoro_sessions")
+}

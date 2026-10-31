@@ -8,7 +8,29 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/client",
-    "build": "npm run build --workspace=apps/client",
+    "dev:client": "npm run dev --workspace=apps/client",
+    "dev:server": "npm run dev --workspace=apps/server",
+    "build": "npm run build --workspace=apps/client && npm run build --workspace=apps/server",
+    "db:generate": "npm run db:generate --workspace=apps/server",
+    "db:push": "npm run db:push --workspace=apps/server",
+    "db:migrate": "npm run db:migrate --workspace=apps/server",
+    "db:studio": "npm run db:studio --workspace=apps/server",
     "preview": "npm run preview --workspace=apps/client"
+  },
+  "devDependencies": {
+    "prisma": "^8.0.0-rc.28"
+  },
+  "allowScripts": {
+    "prisma@6.19.3": true,
+    "prisma@8.0.0-rc.28": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.25.12": true,
+    "fsevents@2.3.3": true,
+    "workerd@1.20261002.1": true
+  },
+  "dependencies": {
+    "@prisma/client": "^7.10.1"
   }
 }
