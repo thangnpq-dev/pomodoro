@@ -88,6 +88,37 @@ const syncPayloadSchema = z.object({
     .default([]),
 });
 
+// Paginated GET /api/sessions?page=1&limit=5
+sessionsRouter.get('/', async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = req.userId!;
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 5));
+    const skip = (page - 1) * limit;
+
+    const [total, items] = await Promise.all([
+      prisma.pomodoroSession.count({ where: { userId } }),
+      prisma.pomodoroSession.findMany({
+        where: { userId },
+        orderBy: { endedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    res.json({
+      items: items.map(formatSession),
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    });
+  } catch (err) {
+    console.error('Get paginated sessions error:', err);
+    res.status(500).json({ error: 'Không thể tải lịch sử phiên.' });
+  }
+});
+
 sessionsRouter.post('/', async (req: AuthenticatedRequest, res) => {
   try {
     const parsed = createSessionSchema.safeParse(req.body);
@@ -206,12 +237,13 @@ sessionsRouter.post('/sync', async (req: AuthenticatedRequest, res) => {
       }
     }
 
-    // 3. Merge Sessions
+    // 3. Merge only unsynced recent Sessions (cap at 30 per sync request to protect DB)
     const userTaskIds = new Set(
       (await prisma.task.findMany({ where: { userId }, select: { id: true } })).map((t) => t.id)
     );
 
-    for (const s of sessions) {
+    const sessionsToMerge = sessions.slice(0, 30);
+    for (const s of sessionsToMerge) {
       const existingSession = await prisma.pomodoroSession.findUnique({ where: { id: s.id } });
       if (!existingSession) {
         await prisma.pomodoroSession.create({
@@ -230,7 +262,7 @@ sessionsRouter.post('/sync', async (req: AuthenticatedRequest, res) => {
       }
     }
 
-    // Return full merged state from DB
+    // Return merged state (recent 50 sessions for 7-day chart & initial history)
     const [allTasks, allSessions] = await Promise.all([
       prisma.task.findMany({
         where: { userId },
@@ -239,7 +271,7 @@ sessionsRouter.post('/sync', async (req: AuthenticatedRequest, res) => {
       prisma.pomodoroSession.findMany({
         where: { userId },
         orderBy: { endedAt: 'desc' },
-        take: 100,
+        take: 50,
       }),
     ]);
 

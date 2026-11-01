@@ -137,7 +137,6 @@ export function usePWAInstall() {
     setIsIOS(ios);
 
     const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 

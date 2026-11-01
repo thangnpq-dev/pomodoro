@@ -2,6 +2,7 @@ import type {
   AuthResponse,
   CloudSyncPayload,
   CloudSyncResponse,
+  PaginatedSessionsResponse,
   PomodoroSession,
   Task,
   UserProfile,
@@ -118,6 +119,13 @@ export const apiClient = {
         method: 'POST',
         body: JSON.stringify(session),
       },
+      token
+    ),
+
+  getSessionsPaginated: (token: string, page = 1, limit = 5) =>
+    request<PaginatedSessionsResponse>(
+      `/sessions?page=${page}&limit=${limit}`,
+      { method: 'GET' },
       token
     ),
 

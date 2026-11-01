@@ -507,12 +507,49 @@ export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
 
         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 space-y-5">
           {/* Alarm Sound Type */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Volume2 className="w-4 h-4 text-rose-500" />
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                Kiểu chuông báo hết giờ
-              </span>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Volume2 className="w-4 h-4 text-rose-500 shrink-0" />
+                <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                  Kiểu chuông báo hết giờ
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (isPlayingPreview) {
+                    soundEngine.stopAlarm();
+                    setIsPlayingPreview(false);
+                  } else {
+                    setIsPlayingPreview(true);
+                    soundEngine.playAlarm(
+                      settings.alarmSound,
+                      settings.alarmVolume,
+                      currentAlarmDuration,
+                      () => setIsPlayingPreview(false)
+                    );
+                  }
+                }}
+                className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
+                  isPlayingPreview
+                    ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30 hover:bg-rose-500/25'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-rose-500/40 hover:text-rose-500'
+                }`}
+              >
+                {isPlayingPreview ? (
+                  <>
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                    <span>Dừng thử</span>
+                  </>
+                ) : (
+                  <>
+                    <PlayCircle className="w-3.5 h-3.5 text-rose-500" />
+                    <span>Nghe thử</span>
+                  </>
+                )}
+              </button>
             </div>
 
             <div className="flex items-center gap-2">
@@ -522,39 +559,16 @@ export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
                   type="button"
                   onClick={() => {
                     updateSettings({ alarmSound: sound });
-                    setIsPlayingPreview(true);
-                    soundEngine.playAlarm(
-                      sound,
-                      settings.alarmVolume,
-                      currentAlarmDuration,
-                      () => setIsPlayingPreview(false)
-                    );
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                     settings.alarmSound === sound
                       ? 'bg-rose-500 text-white shadow-sm'
-                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-rose-500/40'
                   }`}
                 >
-                  <PlayCircle className="w-3.5 h-3.5" />
                   <span>{sound === 'bell' ? 'Chuông' : sound === 'digital' ? 'Điện tử' : 'Gió'}</span>
                 </button>
               ))}
-
-              {isPlayingPreview && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    soundEngine.stopAlarm();
-                    setIsPlayingPreview(false);
-                  }}
-                  title="Dừng nghe thử"
-                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-rose-500/20 hover:text-rose-500 transition cursor-pointer flex items-center gap-1"
-                >
-                  <Square className="w-3 h-3 fill-current" />
-                  <span>Dừng</span>
-                </button>
-              )}
             </div>
           </div>
 
@@ -576,13 +590,6 @@ export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
                   type="button"
                   onClick={() => {
                     updateSettings({ alarmDuration: sec });
-                    setIsPlayingPreview(true);
-                    soundEngine.playAlarm(
-                      settings.alarmSound,
-                      settings.alarmVolume,
-                      sec,
-                      () => setIsPlayingPreview(false)
-                    );
                   }}
                   className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold tabular-nums transition cursor-pointer ${
                     currentAlarmDuration === sec
@@ -598,7 +605,7 @@ export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
 
           {/* Alarm Volume */}
           <div className="flex items-center gap-4 pt-3 border-t border-slate-200/70 dark:border-slate-700/60">
-            <span className="text-xs font-medium text-slate-500 w-24 shrink-0">
+            <span className="text-xs font-medium text-slate-500 w-24 shrink-0 tabular-nums">
               Âm lượng: {settings.alarmVolume}%
             </span>
             <input

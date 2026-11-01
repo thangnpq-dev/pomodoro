@@ -63,3 +63,11 @@ export interface CloudSyncResponse {
   tasks: Task[];
   sessions: PomodoroSession[];
 }
+
+export interface PaginatedSessionsResponse {
+  items: PomodoroSession[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}

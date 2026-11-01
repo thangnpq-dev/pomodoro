@@ -108,10 +108,13 @@ export const usePomodoroStore = create<PomodoroState>()(
 
         set({ isSyncing: true, syncError: null });
         try {
+          // Only send unsynced local sessions (capped at 30) to keep sync payload lightweight
+          const unsyncedSessions = sessions.filter((s) => !s.synced).slice(0, 30);
+
           const merged = await apiClient.syncAll(token, {
             settings,
             tasks,
-            sessions,
+            sessions: unsyncedSessions,
           });
 
           const currentState = get();
