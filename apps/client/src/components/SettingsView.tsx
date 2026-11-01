@@ -48,6 +48,69 @@ function IOSToggle({ checked, onChange, label }: IOSToggleProps) {
   );
 }
 
+interface ThemeSwitchProps {
+  darkMode: boolean;
+  onChange: (dark: boolean) => void;
+}
+
+function ThemeSwitch({ darkMode, onChange }: ThemeSwitchProps) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={darkMode}
+      aria-label="Chuyển đổi giao diện Sáng / Tối"
+      onClick={() => onChange(!darkMode)}
+      className={`relative inline-flex h-10 w-20 shrink-0 cursor-pointer items-center rounded-full p-1 transition-all duration-300 ease-out border ${
+        darkMode
+          ? 'bg-slate-700/90 border-slate-600 shadow-inner shadow-slate-950/60'
+          : 'bg-slate-200/90 border-white shadow-inner shadow-slate-400/40'
+      }`}
+    >
+      {/* Background Track Icons */}
+      <span className="flex w-full items-center justify-between px-2 pointer-events-none">
+        <Sun
+          className={`w-4 h-4 transition-opacity duration-300 ${
+            darkMode ? 'text-slate-400 opacity-60' : 'opacity-0'
+          }`}
+        />
+        <div
+          className={`relative transition-opacity duration-300 ${
+            darkMode ? 'opacity-0' : 'text-slate-400 opacity-65'
+          }`}
+        >
+          <Moon className="w-4 h-4" />
+        </div>
+      </span>
+
+      {/* Raised Sliding Knob with Active Icon */}
+      <span
+        className={`pointer-events-none absolute top-0.5 left-0.5 flex h-8.5 w-8.5 items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-black/5 transition-transform duration-300 ease-out ${
+          darkMode ? 'translate-x-10' : 'translate-x-0'
+        }`}
+      >
+        {darkMode ? (
+          <svg
+            className="w-5 h-5 text-indigo-600 transition-transform duration-300 rotate-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+            <path d="M19 3v4" />
+            <path d="M21 5h-4" />
+          </svg>
+        ) : (
+          <Sun className="w-5 h-5 text-amber-500 transition-transform duration-300 rotate-0" />
+        )}
+      </span>
+    </button>
+  );
+}
+
 export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
   const {
     settings,
@@ -484,7 +547,7 @@ export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
             )}
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                Giao diện Tối (Dark Mode)
+                Giao diện {settings.darkMode ? 'Tối (Dark Mode)' : 'Sáng (Light Mode)'}
               </p>
               <p className="text-xs text-slate-500 mt-0.5">
                 Giúp dịu mắt khi tập trung ban đêm
@@ -493,10 +556,9 @@ export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
           </div>
 
           <div onClick={(e) => e.stopPropagation()}>
-            <IOSToggle
-              checked={settings.darkMode}
+            <ThemeSwitch
+              darkMode={settings.darkMode}
               onChange={(val) => updateSettings({ darkMode: val })}
-              label="Giao diện Tối (Dark Mode)"
             />
           </div>
         </div>
