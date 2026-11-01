@@ -120,4 +120,7 @@ export const apiClient = {
       },
       token
     ),
+
+  clearSessions: (token: string) =>
+    request<void>('/sessions', { method: 'DELETE' }, token),
 };

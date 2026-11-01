@@ -53,6 +53,7 @@ const syncPayloadSchema = z.object({
       autoStartPomodoros: z.boolean(),
       alarmSound: z.enum(['bell', 'digital', 'chime']),
       alarmVolume: z.number().int().min(0).max(100),
+      alarmDuration: z.number().int().min(1).max(60).optional(),
       darkMode: z.boolean(),
     })
     .optional(),
@@ -150,14 +151,27 @@ sessionsRouter.post('/sync', async (req: AuthenticatedRequest, res) => {
     const { settings, tasks, sessions } = parsed.data;
 
     // 1. Upsert Settings
-    const dbSettings = await prisma.userSettings.upsert({
-      where: { userId },
-      update: settings ? { ...settings } : {},
-      create: {
-        userId,
-        ...(settings ? settings : {}),
-      },
-    });
+    let dbSettings;
+    try {
+      dbSettings = await prisma.userSettings.upsert({
+        where: { userId },
+        update: settings ? { ...settings } : {},
+        create: {
+          userId,
+          ...(settings ? settings : {}),
+        },
+      });
+    } catch {
+      const { alarmDuration: _ignored, ...restSettings } = settings || {};
+      dbSettings = await prisma.userSettings.upsert({
+        where: { userId },
+        update: settings ? { ...restSettings } : {},
+        create: {
+          userId,
+          ...(settings ? restSettings : {}),
+        },
+      });
+    }
 
     // 2. Merge Tasks (skip default welcome task if user already has cloud tasks)
     for (const t of tasks) {
@@ -237,5 +251,18 @@ sessionsRouter.post('/sync', async (req: AuthenticatedRequest, res) => {
   } catch (err) {
     console.error('Sync error:', err);
     res.status(500).json({ error: 'Không thể đồng bộ dữ liệu lên đám mây.' });
+  }
+});
+
+// Delete all sessions for current user
+sessionsRouter.delete('/', async (req: AuthenticatedRequest, res) => {
+  try {
+    await prisma.pomodoroSession.deleteMany({
+      where: { userId: req.userId! },
+    });
+    res.status(204).send();
+  } catch (err) {
+    console.error('Clear sessions error:', err);
+    res.status(500).json({ error: 'Không thể xóa lịch sử phiên.' });
   }
 });

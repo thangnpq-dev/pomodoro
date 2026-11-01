@@ -3,7 +3,7 @@ import { BarChart3, Clock, Flame, CheckCircle, Trash2, History } from 'lucide-re
 import { usePomodoroStore } from '../store/usePomodoroStore';
 
 export function StatsView() {
-  const { sessions, tasks, clearHistory } = usePomodoroStore();
+  const { sessions, tasks, user, clearHistory } = usePomodoroStore();
 
   const stats = useMemo(() => {
     const todayStr = new Date().toDateString();
@@ -119,7 +119,9 @@ export function StatsView() {
               Biểu đồ tập trung 7 ngày qua
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Tính theo số phút tập trung (Local Storage)
+              {user
+                ? 'Tính theo số phút tập trung (Đã đồng bộ Cloud)'
+                : 'Tính theo số phút tập trung (Lưu trên thiết bị)'}
             </p>
           </div>
         </div>
@@ -187,12 +189,13 @@ export function StatsView() {
                   <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">
                     {s.taskTitle || (s.mode === 'POMODORO' ? 'Phiên tập trung tự do' : 'Nghỉ giải lao')}
                   </p>
-                  <p className="text-slate-400 text-[11px]">
+                  <p className="text-slate-400 text-[11px] mt-0.5">
                     {new Date(s.endedAt).toLocaleString('vi-VN', {
                       hour: '2-digit',
                       minute: '2-digit',
                       day: '2-digit',
                       month: '2-digit',
+                      year: 'numeric',
                     })}
                   </p>
                 </div>

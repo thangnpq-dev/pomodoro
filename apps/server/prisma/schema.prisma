@@ -34,6 +34,7 @@ model UserSettings {
   autoStartPomodoros Boolean @default(false) @map("auto_start_pomodoros")
   alarmSound         String  @default("bell") @map("alarm_sound")
   alarmVolume        Int     @default(80) @map("alarm_volume")
+  alarmDuration      Int     @default(5) @map("alarm_duration")
   darkMode           Boolean @default(true) @map("dark_mode")
 
   user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)

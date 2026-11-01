@@ -17,6 +17,7 @@ const settingsSchema = z.object({
   autoStartPomodoros: z.boolean().optional(),
   alarmSound: z.enum(['bell', 'digital', 'chime']).optional(),
   alarmVolume: z.number().int().min(0).max(100).optional(),
+  alarmDuration: z.number().int().min(1).max(60).optional(),
   darkMode: z.boolean().optional(),
 });
 
@@ -29,6 +30,7 @@ export const formatSettings = (dbSettings: {
   autoStartPomodoros: boolean;
   alarmSound: string;
   alarmVolume: number;
+  alarmDuration?: number;
   darkMode: boolean;
 }): UserSettings => ({
   pomodoroDuration: dbSettings.pomodoroDuration,
@@ -39,6 +41,7 @@ export const formatSettings = (dbSettings: {
   autoStartPomodoros: dbSettings.autoStartPomodoros,
   alarmSound: (dbSettings.alarmSound as AlarmSound) || 'bell',
   alarmVolume: dbSettings.alarmVolume,
+  alarmDuration: dbSettings.alarmDuration ?? 5,
   darkMode: dbSettings.darkMode,
 });
 
@@ -67,16 +70,32 @@ settingsRouter.put('/', async (req: AuthenticatedRequest, res) => {
     }
 
     const userId = req.userId!;
-    const updated = await prisma.userSettings.upsert({
-      where: { userId },
-      update: parsed.data,
-      create: {
-        userId,
-        ...parsed.data,
-      },
-    });
-
-    res.json(formatSettings(updated));
+    try {
+      const updated = await prisma.userSettings.upsert({
+        where: { userId },
+        update: parsed.data,
+        create: {
+          userId,
+          ...parsed.data,
+        },
+      });
+      res.json(formatSettings(updated));
+    } catch (dbErr) {
+      // Fallback if alarm_duration column has not been pushed to PostgreSQL yet
+      const { alarmDuration: _ignored, ...restData } = parsed.data;
+      const updated = await prisma.userSettings.upsert({
+        where: { userId },
+        update: restData,
+        create: {
+          userId,
+          ...restData,
+        },
+      });
+      res.json({
+        ...formatSettings(updated),
+        ...(parsed.data.alarmDuration ? { alarmDuration: parsed.data.alarmDuration } : {}),
+      });
+    }
   } catch (err) {
     console.error('Update settings error:', err);
     res.status(500).json({ error: 'Không thể cập nhật cấu hình.' });

@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react';
 import {
   Sliders,
   Volume2,
   Moon,
   Sun,
   PlayCircle,
+  Square,
   RotateCcw,
   Cloud,
   CloudOff,
@@ -122,12 +124,22 @@ export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
     logout,
   } = usePomodoroStore();
   const isOnline = useNetworkStatus();
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      soundEngine.stopAlarm();
+    };
+  }, []);
 
   const pomodoroMins = Math.round(settings.pomodoroDuration / 60);
   const shortBreakMins = Math.round(settings.shortBreakDuration / 60);
   const longBreakMins = Math.round(settings.longBreakDuration / 60);
+  const currentAlarmDuration = settings.alarmDuration ?? 5;
 
   const handleResetDefaults = () => {
+    soundEngine.stopAlarm();
+    setIsPlayingPreview(false);
     updateSettings({
       pomodoroDuration: 25 * 60,
       shortBreakDuration: 5 * 60,
@@ -137,6 +149,7 @@ export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
       autoStartPomodoros: false,
       alarmSound: 'bell',
       alarmVolume: 80,
+      alarmDuration: 5,
     });
   };
 
@@ -202,9 +215,12 @@ export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
                 {lastSyncedAt && (
                   <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
                     Đồng bộ lần cuối:{' '}
-                    {new Date(lastSyncedAt).toLocaleTimeString('vi-VN', {
+                    {new Date(lastSyncedAt).toLocaleString('vi-VN', {
                       hour: '2-digit',
                       minute: '2-digit',
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
                     })}
                   </p>
                 )}
@@ -489,7 +505,8 @@ export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
           Âm báo & Giao diện
         </h3>
 
-        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 space-y-4">
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 space-y-5">
+          {/* Alarm Sound Type */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Volume2 className="w-4 h-4 text-rose-500" />
@@ -505,11 +522,17 @@ export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
                   type="button"
                   onClick={() => {
                     updateSettings({ alarmSound: sound });
-                    soundEngine.playAlarm(sound, settings.alarmVolume);
+                    setIsPlayingPreview(true);
+                    soundEngine.playAlarm(
+                      sound,
+                      settings.alarmVolume,
+                      currentAlarmDuration,
+                      () => setIsPlayingPreview(false)
+                    );
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition cursor-pointer flex items-center gap-1 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
                     settings.alarmSound === sound
-                      ? 'bg-rose-500 text-white'
+                      ? 'bg-rose-500 text-white shadow-sm'
                       : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                   }`}
                 >
@@ -517,11 +540,65 @@ export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
                   <span>{sound === 'bell' ? 'Chuông' : sound === 'digital' ? 'Điện tử' : 'Gió'}</span>
                 </button>
               ))}
+
+              {isPlayingPreview && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEngine.stopAlarm();
+                    setIsPlayingPreview(false);
+                  }}
+                  title="Dừng nghe thử"
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-rose-500/20 hover:text-rose-500 transition cursor-pointer flex items-center gap-1"
+                >
+                  <Square className="w-3 h-3 fill-current" />
+                  <span>Dừng</span>
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="text-xs font-medium text-slate-500 w-24">
+          {/* Alarm Duration */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200/70 dark:border-slate-700/60">
+            <div>
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                Thời lượng đổ chuông
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Chuông sẽ kêu lặp lại trong khoảng thời gian này
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[1, 3, 5, 10, 15, 30].map((sec) => (
+                <button
+                  key={sec}
+                  type="button"
+                  onClick={() => {
+                    updateSettings({ alarmDuration: sec });
+                    setIsPlayingPreview(true);
+                    soundEngine.playAlarm(
+                      settings.alarmSound,
+                      settings.alarmVolume,
+                      sec,
+                      () => setIsPlayingPreview(false)
+                    );
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold tabular-nums transition cursor-pointer ${
+                    currentAlarmDuration === sec
+                      ? 'bg-rose-500 text-white shadow-sm'
+                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-rose-500/40'
+                  }`}
+                >
+                  {sec}s
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Alarm Volume */}
+          <div className="flex items-center gap-4 pt-3 border-t border-slate-200/70 dark:border-slate-700/60">
+            <span className="text-xs font-medium text-slate-500 w-24 shrink-0">
               Âm lượng: {settings.alarmVolume}%
             </span>
             <input

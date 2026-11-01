@@ -113,7 +113,11 @@ export function TimerCard() {
         setRemainingSeconds(e.data.remainingSeconds);
       } else if (e.data.type === 'COMPLETE') {
         const state = usePomodoroStore.getState();
-        soundEngine.playAlarm(state.settings.alarmSound, state.settings.alarmVolume);
+        soundEngine.playAlarm(
+          state.settings.alarmSound,
+          state.settings.alarmVolume,
+          state.settings.alarmDuration ?? 5
+        );
 
         const finishedMode = state.mode;
         notify(
@@ -147,6 +151,7 @@ export function TimerCard() {
   }, [isRunning, mode]);
 
   const handleToggleStart = () => {
+    soundEngine.stopAlarm();
     soundEngine.playClick(settings.alarmVolume);
     if (permission === 'default') {
       requestPermission();
@@ -159,11 +164,13 @@ export function TimerCard() {
   };
 
   const handleReset = () => {
+    soundEngine.stopAlarm();
     soundEngine.playClick(settings.alarmVolume);
     resetTimer();
   };
 
   const handleSkip = () => {
+    soundEngine.stopAlarm();
     soundEngine.playClick(settings.alarmVolume);
     completeCurrentSession(true);
   };

@@ -24,6 +24,7 @@ export interface UserSettings {
   autoStartPomodoros: boolean;
   alarmSound: AlarmSound;
   alarmVolume: number; // 0 to 100
+  alarmDuration: number; // in seconds: e.g. 1, 3, 5, 10, 15, 30 (default 5)
   darkMode: boolean;
 }
 

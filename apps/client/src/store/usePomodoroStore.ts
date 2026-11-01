@@ -64,6 +64,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   autoStartPomodoros: false,
   alarmSound: 'bell',
   alarmVolume: 80,
+  alarmDuration: 5,
   darkMode: true,
 };
 
@@ -397,7 +398,13 @@ export const usePomodoroStore = create<PomodoroState>()(
       setActiveTask: (id) => set({ activeTaskId: id }),
 
       sessions: [],
-      clearHistory: () => set({ sessions: [], completedPomodorosInCycle: 0 }),
+      clearHistory: () => {
+        const state = get();
+        set({ sessions: [], completedPomodorosInCycle: 0 });
+        if (state.token) {
+          apiClient.clearSessions(state.token).catch(() => {});
+        }
+      },
     }),
     {
       name: 'pomofocus-local-storage-v1',
