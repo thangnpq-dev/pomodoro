@@ -119,7 +119,14 @@ authRouter.post('/google', async (req, res) => {
     });
   } catch (err) {
     console.error('Google Auth error:', err);
-    res.status(500).json({ error: 'Lỗi máy chủ khi xác thực với Google.' });
+    const detail = err instanceof Error ? err.message : '';
+    if (detail.includes('google_id') || detail.includes('avatar_url') || detail.includes('does not exist')) {
+      res.status(500).json({
+        error: 'Cơ sở dữ liệu chưa được cập nhật cột mới. Hãy chạy: npm run db:generate && npm run db:push',
+      });
+      return;
+    }
+    res.status(500).json({ error: `Lỗi máy chủ khi xác thực với Google: ${detail}` });
   }
 });
 

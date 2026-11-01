@@ -1,9 +1,64 @@
-import { Sliders, Volume2, Moon, Sun, PlayCircle, RotateCcw } from 'lucide-react';
+import {
+  Sliders,
+  Volume2,
+  Moon,
+  Sun,
+  PlayCircle,
+  RotateCcw,
+  Cloud,
+  CloudOff,
+  RefreshCw,
+  LogOut,
+  UserCheck,
+  Plus,
+  Minus,
+} from 'lucide-react';
 import { usePomodoroStore } from '../store/usePomodoroStore';
 import { soundEngine } from '../utils/sound';
+import { useNetworkStatus } from '../hooks/useBrowserFeatures';
 
-export function SettingsView() {
-  const { settings, updateSettings } = usePomodoroStore();
+interface SettingsViewProps {
+  onOpenAuthModal: () => void;
+}
+
+interface IOSToggleProps {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label?: string;
+}
+
+function IOSToggle({ checked, onChange, label }: IOSToggleProps) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-none ${
+        checked ? 'bg-rose-500' : 'bg-slate-300 dark:bg-slate-700'
+      }`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+          checked ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  );
+}
+
+export function SettingsView({ onOpenAuthModal }: SettingsViewProps) {
+  const {
+    settings,
+    updateSettings,
+    user,
+    isSyncing,
+    lastSyncedAt,
+    syncWithCloud,
+    logout,
+  } = usePomodoroStore();
+  const isOnline = useNetworkStatus();
 
   const pomodoroMins = Math.round(settings.pomodoroDuration / 60);
   const shortBreakMins = Math.round(settings.shortBreakDuration / 60);
@@ -23,18 +78,18 @@ export function SettingsView() {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-900/5 space-y-8">
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-rose-500/10 text-rose-500">
-            <Sliders className="w-5 h-5" />
+    <div className="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 sm:p-8 shadow-xl shadow-slate-900/5 space-y-6 sm:space-y-8">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-4">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+            <Sliders className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              Cài đặt bộ đếm & Giao diện
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight truncate">
+              Cài đặt & Tài khoản
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Tự động lưu trên thiết bị của bạn (không cần tài khoản)
+            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+              Tự động lưu trên máy & đồng bộ Cloud
             </p>
           </div>
         </div>
@@ -42,11 +97,106 @@ export function SettingsView() {
         <button
           type="button"
           onClick={handleResetDefaults}
-          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+          className="shrink-0 inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer whitespace-nowrap"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
+          <RotateCcw className="w-3.5 h-3.5 shrink-0" />
           <span>Mặc định</span>
         </button>
+      </div>
+
+      {/* Cloud Account & Sync Management */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          Tài khoản & Đồng bộ đám mây (Cloud Sync)
+        </h3>
+
+        {user ? (
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 min-w-0">
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.name}
+                  className="w-11 h-11 rounded-full border border-slate-200 dark:border-slate-700 shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-base shrink-0">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                    {user.name}
+                  </p>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <Cloud className="w-3 h-3" />
+                    Đã kết nối
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+                {lastSyncedAt && (
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                    Đồng bộ lần cuối:{' '}
+                    {new Date(lastSyncedAt).toLocaleTimeString('vi-VN', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => syncWithCloud()}
+                disabled={isSyncing || !isOnline}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 transition cursor-pointer"
+              >
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-rose-500' : ''}`}
+                />
+                <span>{isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ ngay'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={logout}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border border-rose-500/25 text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Đăng xuất</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 shrink-0 mt-0.5">
+                <CloudOff className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                  Đang dùng chế độ Local (Chưa đăng nhập)
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Đăng nhập bằng Google để sao lưu tiến trình lên đám mây và đồng bộ giữa máy tính & điện thoại.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenAuthModal}
+              className="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-rose-500 hover:bg-rose-600 text-white shadow-sm transition cursor-pointer"
+            >
+              <UserCheck className="w-4 h-4" />
+              <span>Kết nối tài khoản</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Time Durations */}
@@ -55,58 +205,130 @@ export function SettingsView() {
           Thời lượng (Phút)
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800">
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 flex sm:flex-col items-center sm:items-stretch justify-between gap-3">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
               Pomodoro (Tập trung)
             </label>
-            <input
-              type="number"
-              min={1}
-              max={120}
-              value={pomodoroMins}
-              onChange={(e) =>
-                updateSettings({
-                  pomodoroDuration: Math.max(1, Math.min(120, Number(e.target.value) || 1)) * 60,
-                })
-              }
-              className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-base font-bold text-slate-900 dark:text-white"
-            />
+            <div className="inline-flex items-center justify-between p-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80">
+              <button
+                type="button"
+                onClick={() =>
+                  updateSettings({
+                    pomodoroDuration: Math.max(1, pomodoroMins - 5) * 60,
+                  })
+                }
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer active:scale-95"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <input
+                type="number"
+                min={1}
+                max={120}
+                value={pomodoroMins}
+                onChange={(e) =>
+                  updateSettings({
+                    pomodoroDuration: Math.max(1, Math.min(120, Number(e.target.value) || 1)) * 60,
+                  })
+                }
+                className="w-14 text-center bg-transparent text-sm font-bold text-slate-900 dark:text-white focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  updateSettings({
+                    pomodoroDuration: Math.min(120, pomodoroMins + 5) * 60,
+                  })
+                }
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800">
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 flex sm:flex-col items-center sm:items-stretch justify-between gap-3">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
               Nghỉ ngắn (Short Break)
             </label>
-            <input
-              type="number"
-              min={1}
-              max={60}
-              value={shortBreakMins}
-              onChange={(e) =>
-                updateSettings({
-                  shortBreakDuration: Math.max(1, Math.min(60, Number(e.target.value) || 1)) * 60,
-                })
-              }
-              className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-base font-bold text-slate-900 dark:text-white"
-            />
+            <div className="inline-flex items-center justify-between p-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80">
+              <button
+                type="button"
+                onClick={() =>
+                  updateSettings({
+                    shortBreakDuration: Math.max(1, shortBreakMins - 1) * 60,
+                  })
+                }
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer active:scale-95"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={shortBreakMins}
+                onChange={(e) =>
+                  updateSettings({
+                    shortBreakDuration: Math.max(1, Math.min(60, Number(e.target.value) || 1)) * 60,
+                  })
+                }
+                className="w-14 text-center bg-transparent text-sm font-bold text-slate-900 dark:text-white focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  updateSettings({
+                    shortBreakDuration: Math.min(60, shortBreakMins + 1) * 60,
+                  })
+                }
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800">
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 flex sm:flex-col items-center sm:items-stretch justify-between gap-3">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
               Nghỉ dài (Long Break)
             </label>
-            <input
-              type="number"
-              min={1}
-              max={90}
-              value={longBreakMins}
-              onChange={(e) =>
-                updateSettings({
-                  longBreakDuration: Math.max(1, Math.min(90, Number(e.target.value) || 1)) * 60,
-                })
-              }
-              className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-base font-bold text-slate-900 dark:text-white"
-            />
+            <div className="inline-flex items-center justify-between p-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80">
+              <button
+                type="button"
+                onClick={() =>
+                  updateSettings({
+                    longBreakDuration: Math.max(1, longBreakMins - 5) * 60,
+                  })
+                }
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer active:scale-95"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <input
+                type="number"
+                min={1}
+                max={90}
+                value={longBreakMins}
+                onChange={(e) =>
+                  updateSettings({
+                    longBreakDuration: Math.max(1, Math.min(90, Number(e.target.value) || 1)) * 60,
+                  })
+                }
+                className="w-14 text-center bg-transparent text-sm font-bold text-slate-900 dark:text-white focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  updateSettings({
+                    longBreakDuration: Math.min(90, longBreakMins + 5) * 60,
+                  })
+                }
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -117,60 +339,85 @@ export function SettingsView() {
           Chu kỳ & Tự động chuyển
         </h3>
 
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800">
+        <div className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800">
           <div>
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
               Số phiên Pomodoro trước kỳ nghỉ dài
             </p>
             <p className="text-xs text-slate-500">Mặc định sau 4 phiên sẽ có 1 lần nghỉ dài</p>
           </div>
-          <input
-            type="number"
-            min={2}
-            max={12}
-            value={settings.longBreakInterval}
-            onChange={(e) =>
-              updateSettings({
-                longBreakInterval: Math.max(2, Math.min(12, Number(e.target.value) || 4)),
-              })
-            }
-            className="w-20 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-center text-slate-900 dark:text-white"
-          />
+          <div className="inline-flex items-center p-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shrink-0">
+            <button
+              type="button"
+              onClick={() =>
+                updateSettings({
+                  longBreakInterval: Math.max(2, settings.longBreakInterval - 1),
+                })
+              }
+              disabled={settings.longBreakInterval <= 2}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-35 transition cursor-pointer active:scale-95"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+            <span className="w-8 text-center text-xs font-bold text-slate-900 dark:text-white tabular-nums select-none">
+              {settings.longBreakInterval}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                updateSettings({
+                  longBreakInterval: Math.min(12, settings.longBreakInterval + 1),
+                })
+              }
+              disabled={settings.longBreakInterval >= 12}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-35 transition cursor-pointer active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
-        <label className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 cursor-pointer">
-          <div>
+        <div
+          onClick={() => updateSettings({ autoStartBreaks: !settings.autoStartBreaks })}
+          className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 cursor-pointer select-none"
+        >
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              Tự động bắt đầu giờ nghỉ (Auto-start Breaks)
+              Tự động bắt đầu giờ nghỉ
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 mt-0.5">
               Chuyển sang đếm ngược giờ nghỉ ngay khi xong Pomodoro
             </p>
           </div>
-          <input
-            type="checkbox"
-            checked={settings.autoStartBreaks}
-            onChange={(e) => updateSettings({ autoStartBreaks: e.target.checked })}
-            className="w-5 h-5 accent-rose-500 rounded cursor-pointer"
-          />
-        </label>
+          <div onClick={(e) => e.stopPropagation()}>
+            <IOSToggle
+              checked={settings.autoStartBreaks}
+              onChange={(val) => updateSettings({ autoStartBreaks: val })}
+              label="Tự động bắt đầu giờ nghỉ"
+            />
+          </div>
+        </div>
 
-        <label className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 cursor-pointer">
-          <div>
+        <div
+          onClick={() => updateSettings({ autoStartPomodoros: !settings.autoStartPomodoros })}
+          className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 cursor-pointer select-none"
+        >
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              Tự động bắt đầu Pomodoro mới (Auto-start Pomodoros)
+              Tự động bắt đầu Pomodoro mới
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 mt-0.5">
               Tự động chạy phiên tập trung tiếp theo ngay khi hết giờ nghỉ
             </p>
           </div>
-          <input
-            type="checkbox"
-            checked={settings.autoStartPomodoros}
-            onChange={(e) => updateSettings({ autoStartPomodoros: e.target.checked })}
-            className="w-5 h-5 accent-rose-500 rounded cursor-pointer"
-          />
-        </label>
+          <div onClick={(e) => e.stopPropagation()}>
+            <IOSToggle
+              checked={settings.autoStartPomodoros}
+              onChange={(val) => updateSettings({ autoStartPomodoros: val })}
+              label="Tự động bắt đầu Pomodoro mới"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Sound & Appearance */}
@@ -225,32 +472,33 @@ export function SettingsView() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800">
-          <div className="flex items-center gap-2.5">
+        <div
+          onClick={() => updateSettings({ darkMode: !settings.darkMode })}
+          className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 cursor-pointer select-none"
+        >
+          <div className="flex items-center gap-3 min-w-0">
             {settings.darkMode ? (
-              <Moon className="w-4 h-4 text-indigo-400" />
+              <Moon className="w-4 h-4 text-indigo-400 shrink-0" />
             ) : (
-              <Sun className="w-4 h-4 text-amber-500" />
+              <Sun className="w-4 h-4 text-amber-500 shrink-0" />
             )}
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                 Giao diện Tối (Dark Mode)
               </p>
-              <p className="text-xs text-slate-500">Giúp dịu mắt khi tập trung ban đêm</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Giúp dịu mắt khi tập trung ban đêm
+              </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => updateSettings({ darkMode: !settings.darkMode })}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
-              settings.darkMode
-                ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-                : 'bg-amber-500/20 text-amber-700 border border-amber-500/30'
-            }`}
-          >
-            {settings.darkMode ? 'Đang bật Tối' : 'Đang bật Sáng'}
-          </button>
+          <div onClick={(e) => e.stopPropagation()}>
+            <IOSToggle
+              checked={settings.darkMode}
+              onChange={(val) => updateSettings({ darkMode: val })}
+              label="Giao diện Tối (Dark Mode)"
+            />
+          </div>
         </div>
       </div>
     </div>

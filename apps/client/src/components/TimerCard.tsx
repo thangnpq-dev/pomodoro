@@ -3,7 +3,7 @@ import { Play, Pause, RotateCcw, SkipForward, Flame, Coffee, Sparkles, Target } 
 import type { TimerMode } from '@pomodoro/shared';
 import { usePomodoroStore, getDurationForMode } from '../store/usePomodoroStore';
 import { soundEngine } from '../utils/sound';
-import { useNotification, useWakeLock } from '../hooks/useBrowserFeatures';
+import { useNotification, useWakeLock, useMediaSession } from '../hooks/useBrowserFeatures';
 
 const MODE_CONFIG: Record<
   TimerMode,
@@ -83,6 +83,16 @@ export function TimerCard() {
   const progress = totalSeconds > 0 ? ((totalSeconds - remainingSeconds) / totalSeconds) * 100 : 0;
   const activeTask = tasks.find((t) => t.id === activeTaskId);
   const currentConfig = MODE_CONFIG[mode];
+
+  // Integrate with mobile lock-screen Media Session controls
+  useMediaSession(
+    `${formatTime(remainingSeconds)} • ${currentConfig.label}`,
+    activeTask ? activeTask.title : 'PomoFocus',
+    isRunning,
+    startTimer,
+    pauseTimer,
+    () => completeCurrentSession(true)
+  );
 
   // Update document title with live timer
   useEffect(() => {
@@ -270,7 +280,7 @@ export function TimerCard() {
           type="button"
           onClick={handleReset}
           title="Đặt lại bộ đếm"
-          className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer active:scale-95"
+          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition cursor-pointer active:scale-95"
         >
           <RotateCcw className="w-5 h-5" />
         </button>
@@ -278,7 +288,7 @@ export function TimerCard() {
         <button
           type="button"
           onClick={handleToggleStart}
-          className={`flex-1 max-w-[200px] py-4 px-6 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2.5 text-base transition transform active:scale-95 cursor-pointer ${currentConfig.accentBg}`}
+          className={`flex-1 max-w-[210px] py-4 px-6 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2.5 text-base transition transform active:scale-95 cursor-pointer ${currentConfig.accentBg}`}
         >
           {isRunning ? (
             <>
@@ -297,7 +307,7 @@ export function TimerCard() {
           type="button"
           onClick={handleSkip}
           title="Bỏ qua phiên hiện tại"
-          className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer active:scale-95"
+          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition cursor-pointer active:scale-95"
         >
           <SkipForward className="w-5 h-5" />
         </button>

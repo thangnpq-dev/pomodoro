@@ -152,11 +152,11 @@ export function StatsView() {
       </div>
 
       {/* Recent Sessions History */}
-      <div className="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <History className="w-5 h-5 text-rose-500" />
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
+      <div className="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-sm">
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2 min-w-0">
+            <History className="w-5 h-5 text-rose-500 shrink-0" />
+            <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">
               Lịch sử phiên gần đây
             </h3>
           </div>
@@ -164,9 +164,9 @@ export function StatsView() {
             <button
               type="button"
               onClick={clearHistory}
-              className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-rose-500 transition cursor-pointer"
+              className="shrink-0 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 text-slate-500 dark:text-slate-300 hover:border-rose-500/40 hover:text-rose-500 hover:bg-rose-500/5 transition cursor-pointer whitespace-nowrap"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3.5 h-3.5 shrink-0" />
               <span>Xóa lịch sử</span>
             </button>
           )}

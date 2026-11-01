@@ -1,0 +1,27 @@
+{
+  "name": "PomoFocus - Pomodoro & Quản lý Task",
+  "short_name": "PomoFocus",
+  "description": "Ứng dụng quản lý thời gian theo phương pháp Pomodoro kết hợp quản lý công việc (Offline-First PWA).",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#020617",
+  "theme_color": "#f43f5e",
+  "lang": "vi",
+  "categories": ["productivity", "utilities", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

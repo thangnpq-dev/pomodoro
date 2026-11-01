@@ -5,10 +5,9 @@ import {
   Settings,
   CloudOff,
   Cloud,
-  RefreshCw,
-  LogOut,
   Flame,
   UserCheck,
+  WifiOff,
 } from 'lucide-react';
 import { usePomodoroStore } from './store/usePomodoroStore';
 import { TimerCard } from './components/TimerCard';
@@ -16,6 +15,8 @@ import { TaskList } from './components/TaskList';
 import { StatsView } from './components/StatsView';
 import { SettingsView } from './components/SettingsView';
 import { AuthModal } from './components/AuthModal';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { useNetworkStatus } from './hooks/useBrowserFeatures';
 
 type ActiveTab = 'timer' | 'stats' | 'settings';
 
@@ -23,12 +24,12 @@ export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('timer');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
+  const isOnline = useNetworkStatus();
   const darkMode = usePomodoroStore((state) => state.settings.darkMode);
   const user = usePomodoroStore((state) => state.user);
   const token = usePomodoroStore((state) => state.token);
   const isSyncing = usePomodoroStore((state) => state.isSyncing);
   const syncWithCloud = usePomodoroStore((state) => state.syncWithCloud);
-  const logout = usePomodoroStore((state) => state.logout);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -52,7 +53,7 @@ export function App() {
   }, [token, syncWithCloud]);
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors pb-20 sm:pb-10">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors pb-24 md:pb-10">
       {/* Top Header */}
       <header className="sticky top-0 z-20 backdrop-blur-md bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/70 dark:border-slate-800/80">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
@@ -64,15 +65,20 @@ export function App() {
               <h1 className="text-base font-bold tracking-tight text-slate-900 dark:text-white leading-none">
                 PomoFocus
               </h1>
-              {user ? (
+              {!isOnline ? (
+                <span className="inline-flex items-center gap-1 text-[11px] text-amber-500 truncate">
+                  <WifiOff className="w-3 h-3 shrink-0" />
+                  Đang Offline (Tự lưu trên máy)
+                </span>
+              ) : user ? (
                 <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 truncate">
                   <Cloud className="w-3 h-3 shrink-0" />
-                  Đã đồng bộ Cloud ({user.name})
+                  {isSyncing ? 'Đang đồng bộ...' : 'Đã đồng bộ Cloud'}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 truncate">
                   <CloudOff className="w-3 h-3 text-amber-500 shrink-0" />
-                  Local Mode (Chưa đăng nhập)
+                  Local Mode
                 </span>
               )}
             </div>
@@ -118,39 +124,33 @@ export function App() {
             </button>
           </nav>
 
-          {/* Optional Cloud Sync / Account Action */}
+          {/* Clean Header Actions: PWA Install + Profile Pill (Sync/Logout moved to Settings) */}
           <div className="flex items-center gap-2 shrink-0">
+            <PWAInstallBanner />
+
             {user ? (
-              <div className="flex items-center gap-1.5">
-                {user.avatarUrl && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('settings')}
+                title="Quản lý tài khoản & đồng bộ trong Cài đặt"
+                className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 hover:border-slate-300 dark:hover:border-slate-700 transition cursor-pointer"
+              >
+                {user.avatarUrl ? (
                   <img
                     src={user.avatarUrl}
                     alt={user.name}
-                    className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-700 hidden sm:block"
+                    className="w-6 h-6 rounded-full"
                     referrerPolicy="no-referrer"
                   />
-                )}
-                <button
-                  type="button"
-                  onClick={() => syncWithCloud()}
-                  disabled={isSyncing}
-                  title="Đồng bộ ngay với máy chủ"
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-rose-500' : ''}`} />
-                  <span className="hidden sm:inline">
-                    {isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ'}
+                ) : (
+                  <span className="w-6 h-6 rounded-full bg-rose-500/15 text-rose-500 text-xs font-bold flex items-center justify-center">
+                    {user.name.charAt(0).toUpperCase()}
                   </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={logout}
-                  title="Đăng xuất (Dữ liệu trên máy vẫn được giữ nguyên)"
-                  className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-rose-500 transition cursor-pointer"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
+                )}
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-200 max-w-[100px] truncate">
+                  {user.name}
+                </span>
+              </button>
             ) : (
               <button
                 type="button"
@@ -158,7 +158,7 @@ export function App() {
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition cursor-pointer"
               >
                 <UserCheck className="w-3.5 h-3.5" />
-                <span>Lưu tiến trình (Cloud)</span>
+                <span>Lưu tiến trình</span>
               </button>
             )}
           </div>
@@ -180,11 +180,13 @@ export function App() {
 
         {activeTab === 'stats' && <StatsView />}
 
-        {activeTab === 'settings' && <SettingsView />}
+        {activeTab === 'settings' && (
+          <SettingsView onOpenAuthModal={() => setIsAuthModalOpen(true)} />
+        )}
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-6 py-2 flex items-center justify-around">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-6 pt-2 safe-area-bottom flex items-center justify-around">
         <button
           type="button"
           onClick={() => setActiveTab('timer')}
