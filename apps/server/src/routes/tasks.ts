@@ -89,6 +89,7 @@ tasksRouter.post('/', async (req: AuthenticatedRequest, res) => {
 
 tasksRouter.patch('/:id', async (req: AuthenticatedRequest, res) => {
   try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const parsed = updateTaskSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: 'Dữ liệu cập nhật không hợp lệ.' });
@@ -96,7 +97,7 @@ tasksRouter.patch('/:id', async (req: AuthenticatedRequest, res) => {
     }
 
     const existing = await prisma.task.findFirst({
-      where: { id: req.params.id, userId: req.userId! },
+      where: { id, userId: req.userId! },
     });
     if (!existing) {
       res.status(404).json({ error: 'Không tìm thấy công việc.' });
@@ -117,8 +118,9 @@ tasksRouter.patch('/:id', async (req: AuthenticatedRequest, res) => {
 
 tasksRouter.delete('/:id', async (req: AuthenticatedRequest, res) => {
   try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const existing = await prisma.task.findFirst({
-      where: { id: req.params.id, userId: req.userId! },
+      where: { id, userId: req.userId! },
     });
     if (!existing) {
       res.status(404).json({ error: 'Không tìm thấy công việc.' });
