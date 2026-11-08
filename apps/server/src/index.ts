@@ -12,11 +12,17 @@ const PORT = Number(process.env.PORT) || 4000;
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: process.env.CLIENT_URL || true,
     credentials: true,
   })
 );
 app.use(express.json());
+
+// COOP header for Google OAuth popups
+app.use((_req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  next();
+});
 
 // Health check
 app.get('/api/health', (_req, res) => {
