@@ -131,3 +131,5 @@ dist
 
 .env
 .env.prod
+deploy/
+pomodoro-deploy.zip

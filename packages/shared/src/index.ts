@@ -1,5 +1,20 @@
 export type TimerMode = 'POMODORO' | 'SHORT_BREAK' | 'LONG_BREAK';
 
+export type AlarmSound = 'bell' | 'digital' | 'chime';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
+  createdAt: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: UserProfile;
+}
+
 export interface UserSettings {
   pomodoroDuration: number; // in seconds, default 1500 (25m)
   shortBreakDuration: number; // in seconds, default 300 (5m)
@@ -7,8 +22,9 @@ export interface UserSettings {
   longBreakInterval: number; // default 4
   autoStartBreaks: boolean;
   autoStartPomodoros: boolean;
-  alarmSound: 'bell' | 'digital' | 'chime';
+  alarmSound: AlarmSound;
   alarmVolume: number; // 0 to 100
+  alarmDuration: number; // in seconds: e.g. 1, 3, 5, 10, 15, 30 (default 5)
   darkMode: boolean;
 }
 
@@ -33,5 +49,25 @@ export interface PomodoroSession {
   startedAt: string;
   endedAt: string;
   isCompleted: boolean;
-  synced?: boolean; // For Phase 2 Cloud Sync
+  synced?: boolean;
+}
+
+export interface CloudSyncPayload {
+  settings: UserSettings;
+  tasks: Task[];
+  sessions: PomodoroSession[];
+}
+
+export interface CloudSyncResponse {
+  settings: UserSettings;
+  tasks: Task[];
+  sessions: PomodoroSession[];
+}
+
+export interface PaginatedSessionsResponse {
+  items: PomodoroSession[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }

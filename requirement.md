@@ -20,7 +20,7 @@
 ### Backend (Server-side)
 * **Core:** Node.js + Express.js + TypeScript.
 * **ORM:** **Prisma** (type-safe tuyệt đối với TypeScript, trực quan và quản lý migration dễ dàng với PostgreSQL).
-* **Authentication (Tùy chọn cho người dùng muốn lưu tiến trình):** JWT (Access Token + Refresh Token qua HTTP-Only Cookie) hoặc tích hợp Google OAuth2. Chỉ kích hoạt khi người dùng chủ động đăng nhập để đồng bộ dữ liệu; không chặn quyền sử dụng app của người dùng ẩn danh (Guest).
+* **Authentication (Tùy chọn cho người dùng muốn lưu tiến trình):** Ưu tiên **Google OAuth2 (Đăng nhập 1 chạm với Google Identity Services)** kết hợp JWT (hoặc Email/Password truyền thống). Chỉ kích hoạt khi người dùng chủ động đăng nhập để đồng bộ dữ liệu; không chặn quyền sử dụng app của người dùng ẩn danh (Guest).
 * **Validation:** `Zod` (dùng chung schema kiểm tra dữ liệu cho cả Frontend và Backend).
 * **Web Push:** Thư viện `web-push` (VAPID keys) để gửi thông báo khi hết giờ nếu app đang chạy ngầm trên điện thoại.
 
@@ -56,9 +56,10 @@
 1. **Mặc định Không cần Tài khoản (Local Mode):**
    * Người dùng vào web/app là sử dụng được ngay lập tức tất cả tính năng.
    * Toàn bộ Tasks, Settings và Lịch sử phiên Pomodoro được lưu cục bộ trên trình duyệt (`localStorage` / `IndexedDB`).
-2. **Đăng ký / Đăng nhập (Tùy chọn):**
+2. **Đăng ký / Đăng nhập bằng Google OAuth2 (Tùy chọn):**
    * Dành cho người dùng có nhu cầu lưu lại tiến trình lâu dài (tránh mất dữ liệu khi xóa cache trình duyệt) hoặc muốn đồng bộ giữa máy tính và điện thoại.
-   * Khi người dùng quyết định tạo tài khoản hoặc đăng nhập lần đầu trên thiết bị, hệ thống hỗ trợ **gộp (merge/sync)** dữ liệu đã làm ở chế độ Local trước đó lên PostgreSQL để không bị mất tiến trình cũ.
+   * Cung cấp nút **"Tiếp tục với Google" (1-Click Google Sign-In)** làm phương thức chính để người dùng không phải nhớ mật khẩu hay điền form phức tạp (vẫn hỗ trợ Email/Mật khẩu dự phòng).
+   * Khi người dùng đăng nhập lần đầu trên thiết bị, hệ thống tự động **gộp (merge/sync)** dữ liệu đã làm ở chế độ Local trước đó lên PostgreSQL để không bị mất tiến trình cũ.
 
 ### 3.5. Thống kê (Analytics / Reports)
 1. Tổng số giờ tập trung theo Ngày / Tuần / Tháng (hiển thị từ dữ liệu Local hoặc dữ liệu Cloud nếu đã đăng nhập).
@@ -100,8 +101,10 @@ erDiagram
     USERS {
         uuid id PK
         varchar email UK
-        varchar password_hash
+        varchar google_id UK "Nullable - ID tài khoản Google"
+        varchar password_hash "Nullable - Trống nếu đăng nhập bằng Google"
         varchar name
+        varchar avatar_url "Nullable - Ảnh đại diện từ Google"
         timestamp created_at
     }
 
@@ -150,8 +153,9 @@ erDiagram
 
 | Nhóm | Method | Endpoint | Mô tả |
 | :--- | :--- | :--- | :--- |
-| **Auth** | `POST` | `/api/auth/register` | Đăng ký tài khoản mới + tạo `user_settings` mặc định |
-| | `POST` | `/api/auth/login` | Đăng nhập, trả về JWT |
+| **Auth** | `POST` | `/api/auth/google` | Đăng nhập / Đăng ký tự động 1 chạm bằng Google ID Token + tạo `user_settings` mặc định |
+| | `POST` | `/api/auth/register` | Đăng ký tài khoản bằng Email/Password (dự phòng) |
+| | `POST` | `/api/auth/login` | Đăng nhập bằng Email/Password, trả về JWT |
 | | `GET` | `/api/auth/me` | Lấy thông tin user hiện tại |
 | **Settings** | `GET` | `/api/settings` | Lấy cấu hình thời gian của user |
 | | `PUT` | `/api/settings` | Cập nhật cấu hình Pomodoro |

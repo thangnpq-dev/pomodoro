@@ -2,11 +2,16 @@
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
+  private activeOscillators: OscillatorNode[] = [];
+  private loopTimer: ReturnType<typeof setInterval> | null = null;
+  private stopTimeout: ReturnType<typeof setTimeout> | null = null;
 
   private getContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
       }
@@ -15,6 +20,26 @@ class SoundEngine {
       this.ctx.resume();
     }
     return this.ctx;
+  }
+
+  stopAlarm() {
+    if (this.loopTimer) {
+      clearInterval(this.loopTimer);
+      this.loopTimer = null;
+    }
+    if (this.stopTimeout) {
+      clearTimeout(this.stopTimeout);
+      this.stopTimeout = null;
+    }
+    for (const osc of this.activeOscillators) {
+      try {
+        osc.stop();
+        osc.disconnect();
+      } catch {
+        // already stopped
+      }
+    }
+    this.activeOscillators = [];
   }
 
   playClick(volume = 50) {
@@ -37,7 +62,7 @@ class SoundEngine {
     osc.stop(ctx.currentTime + 0.06);
   }
 
-  playAlarm(type: 'bell' | 'digital' | 'chime' = 'bell', volume = 80) {
+  private playSinglePattern(type: 'bell' | 'digital' | 'chime', volume: number) {
     const ctx = this.getContext();
     if (!ctx || volume <= 0) return;
 
@@ -59,21 +84,23 @@ class SoundEngine {
         gain.connect(ctx.destination);
         osc.start(now + idx * 0.14);
         osc.stop(now + idx * 0.14 + 0.65);
+        this.activeOscillators.push(osc);
       });
     } else if (type === 'digital') {
       for (let i = 0; i < 3; i++) {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'square';
-        osc.frequency.setValueAtTime(880, now + i * 0.22);
+        osc.frequency.setValueAtTime(880, now + i * 0.2);
 
-        gain.gain.setValueAtTime(vol * 0.6, now + i * 0.22);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.22 + 0.15);
+        gain.gain.setValueAtTime(vol * 0.6, now + i * 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.2 + 0.14);
 
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.start(now + i * 0.22);
-        osc.stop(now + i * 0.22 + 0.15);
+        osc.start(now + i * 0.2);
+        osc.stop(now + i * 0.2 + 0.14);
+        this.activeOscillators.push(osc);
       }
     } else {
       // chime
@@ -82,17 +109,47 @@ class SoundEngine {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.2);
+        osc.frequency.setValueAtTime(freq, now + idx * 0.18);
 
-        gain.gain.setValueAtTime(vol, now + idx * 0.2);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.2 + 0.8);
+        gain.gain.setValueAtTime(vol, now + idx * 0.18);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.18 + 0.75);
 
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.start(now + idx * 0.2);
-        osc.stop(now + idx * 0.2 + 0.8);
+        osc.start(now + idx * 0.18);
+        osc.stop(now + idx * 0.18 + 0.75);
+        this.activeOscillators.push(osc);
       });
     }
+  }
+
+  playAlarm(
+    type: 'bell' | 'digital' | 'chime' = 'bell',
+    volume = 80,
+    durationSeconds = 5,
+    onEnded?: () => void
+  ) {
+    this.stopAlarm();
+    if (volume <= 0 || durationSeconds <= 0) {
+      onEnded?.();
+      return;
+    }
+
+    const totalMs = Math.max(1, durationSeconds) * 1000;
+    const cycleMs = 1200; // Repeat melody every 1.2s until durationSeconds is reached
+
+    this.playSinglePattern(type, volume);
+
+    if (totalMs > cycleMs) {
+      this.loopTimer = setInterval(() => {
+        this.playSinglePattern(type, volume);
+      }, cycleMs);
+    }
+
+    this.stopTimeout = setTimeout(() => {
+      this.stopAlarm();
+      onEnded?.();
+    }, totalMs);
   }
 }
 
